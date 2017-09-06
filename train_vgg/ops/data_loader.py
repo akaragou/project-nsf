@@ -95,14 +95,11 @@ def read_and_decode_single_example(
 
 def get_crop_coors(image_size, target_size):
     h_diff = image_size[0] - target_size[0]
-    w_diff = image_size[1] - target_size[1]
     ts = tf.constant(
         target_size[0], shape=[2, 1])
-    offset_h = tf.cast(
+    offset = tf.cast(
         tf.round(tf.random_uniform([1], minval=0, maxval=h_diff)), tf.int32)
-    offset_w = tf.cast(
-        tf.round(tf.random_uniform([1], minval=0, maxval=w_diff)), tf.int32)
-    return offset_h, ts[0], offset_w, ts[1]
+    return offset, ts[0], offset, ts[1]
 
 
 def slice_op(image_slice, h_min, w_min, h_max, w_max):
@@ -229,30 +226,31 @@ def resize(image, target_shape):
         tf.image.resize_bilinear(tf.expand_dims(image, axis=0), target_shape))
 
 
-def get_tf_dict(return_heatmaps, return_clicks):
+def get_tf_dict(return_heatmaps, weight_loss_with_counts):
     fdict = {
               'label': tf.FixedLenFeature([], tf.int64),
               'image': tf.FixedLenFeature([], tf.string)
             }
+
     if return_heatmaps:
         fdict['heatmap'] = tf.FixedLenFeature([], tf.string)
-    if return_clicks:
+    if weight_loss_with_counts:
         fdict['click_count'] = tf.FixedLenFeature([], tf.int64)
     return fdict
 
 
 def read_and_decode(
-        filename_queue,
-        im_size,
-        model_input_shape,
-        data_augmentations,
-        return_heatmaps,
-        return_clicks):
+                    filename_queue,
+                    im_size,
+                    model_input_shape,
+                    data_augmentations,
+                    return_heatmaps=False,
+                    weight_loss_with_counts=False):
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
     fdict = get_tf_dict(
         return_heatmaps=return_heatmaps,
-        return_clicks=return_clicks)
+        weight_loss_with_counts=weight_loss_with_counts)
 
     features = tf.parse_single_example(serialized_example, features=fdict)
 
@@ -264,36 +262,15 @@ def read_and_decode(
 
     # image = tf.transpose(res_image, [2, 1, 0])
     image.set_shape(im_size)
-
-    if return_heatmaps:
-        # Normalize the heatmap and prep for image augmentations
-        heatmap = tf.decode_raw(features['heatmap'], tf.float32)
-        heatmap = tf.reshape(heatmap, [im_size[0], im_size[1], 1])
-        heatmap /= tf.reduce_max(heatmap)
-        heatmap = repeat_elements(heatmap, 3, axis=2)
-        image, heatmap = image_augmentations(
-            image, heatmap, im_size, data_augmentations,
-            model_input_shape, return_heatmaps)
-        heatmap = tf.where(tf.is_nan(heatmap), tf.zeros_like(heatmap), heatmap)
-
-    else:
-        image = image_augmentations(
-            image, None, im_size, data_augmentations,
-            model_input_shape, return_heatmaps)
+    image = image_augmentations(
+        image, None, im_size, data_augmentations,
+        model_input_shape, return_heatmaps)
+    image = tf.image.rgb_to_grayscale(image)
 
     # Convert label from a scalar uint8 tensor to an int32 scalar.
     label = tf.cast(features['label'], tf.int32)
 
-    if return_clicks:
-        counts = tf.cast(features['click_count'], tf.float32)
-    if return_heatmaps is True and return_clicks is False:
-        return image, label, heatmap
-    elif return_heatmaps is True and return_clicks is True:
-        return image, label, heatmap, counts
-    elif return_heatmaps is False and return_clicks is True:
-        return image, label, counts
-    else:
-        return image, label
+    return image, label
 
 
 def inputs(
@@ -306,9 +283,7 @@ def inputs(
         num_threads=2,
         return_heatmaps=True,
         shuffle_batch=True,
-        return_clicks=False):
-    capacity = 1000 + 3 * batch_size
-    min_after_dequeue = 1000
+        weight_loss_with_counts=False):
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer(
             [tfrecord_file], num_epochs=num_epochs)
@@ -317,47 +292,19 @@ def inputs(
         # queue.
         batch_data = read_and_decode(
             filename_queue, im_size, model_input_shape,
-            train, return_heatmaps, return_clicks)
+            train)
         # Shuffle the examples and collect them into batch_size batches.
         # (Internally uses a RandomShuffleQueue.)
         # We run this in two threads to avoid being a bottleneck.
-
-        if return_heatmaps and return_clicks:
-            if shuffle_batch:
-                images, labels, heatmaps, counts = tf.train.shuffle_batch(
-                    batch_data, batch_size=batch_size, num_threads=num_threads,
-                    capacity=capacity,
-                    # Ensures a minimum amount of shuffling of examples.
-                    min_after_dequeue=min_after_dequeue)
-            else:
-                images, labels, heatmaps, counts = tf.train.batch(
-                    batch_data, batch_size=batch_size, num_threads=num_threads,
-                    capacity=capacity)
-
-            return images, labels, heatmaps, counts
-        elif return_heatmaps and return_clicks is False:
-            if shuffle_batch:
-                images, labels, heatmaps = tf.train.shuffle_batch(
-                    batch_data, batch_size=batch_size, num_threads=num_threads,
-                    capacity=capacity,
-                    # Ensures a minimum amount of shuffling of examples.
-                    min_after_dequeue=min_after_dequeue)
-            else:
-                images, labels, heatmaps = tf.train.batch(
-                    batch_data, batch_size=batch_size, num_threads=num_threads,
-                    capacity=capacity)
-
-            return images, labels, heatmaps
+        if shuffle_batch:
+            images, labels = tf.train.shuffle_batch(
+                batch_data, batch_size=batch_size, num_threads=num_threads,
+                capacity=1000 + 3 * batch_size,
+                # Ensures a minimum amount of shuffling of examples.
+                min_after_dequeue=1000)
         else:
-            if shuffle_batch:
-                images, labels = tf.train.shuffle_batch(
-                    batch_data, batch_size=batch_size, num_threads=num_threads,
-                    capacity=capacity,
-                    # Ensures a minimum amount of shuffling of examples.
-                    min_after_dequeue=min_after_dequeue)
-            else:
-                images, labels = tf.train.batch(
-                    batch_data, batch_size=batch_size, num_threads=num_threads,
-                    capacity=capacity)
+            images, labels = tf.train.batch(
+                batch_data, batch_size=batch_size, num_threads=num_threads,
+                capacity=1000 + 3 * batch_size)
 
-            return images, labels
+        return images, labels

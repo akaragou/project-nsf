@@ -5,7 +5,7 @@ import tensorflow as tf
 import numpy as np
 import argparse
 from datetime import datetime
-from data_loader import inputs
+from ops.data_loader import inputs
 from ops.tf_fun import make_dir, training_loop
 from ops.loss_utils import softmax_loss , wd_loss
 from ops.metrics import class_accuracy
