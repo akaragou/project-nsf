@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS combos
+DROP TABLE IF EXISTS results
+
+create table combos (_id bigserial primary key, fine_tune_layers varchar, new_lr float, data_augmentations varchar, processing boolean);
+create table results (_id bigserial primary key, combos_table_id int, model_name varchar, iteration int, loss float, validation_accuracy float); 
