@@ -9,7 +9,15 @@ import matplotlib.pyplot as plot_layers
 from vgg_config import ConfigVgg
 from baseline_vgg16 import Vgg16
 from tf_record import tfrecord2metafilename, read_and_decode
+from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
 
+def make_dir(dir):
+    """
+    creates a directory if it does not exist
+    Input: a directory
+    Output: None
+    """
+    if not os.path.isdir(dir): os.makedirs(dir)
 
 def create_conv_features(layer, sampled_indicies):
     """
@@ -61,7 +69,7 @@ def update_file_names(main_directory, batch):
 
     return file_array
 
-def vgg16_train_feature_extract(device, config):
+def vgg16_train_feature_extract(device, config, model_path=None):
     """
     extracting train features for each convolutional and fully connected layer and storing them as numpy arrays in batches 
     Input: device - a gpu device
@@ -72,7 +80,7 @@ def vgg16_train_feature_extract(device, config):
     os.environ['CUDA_VISIBLE_DEVICES'] = str(device)
 
     with tf.Graph().as_default():
-    
+        
         # loading training data
         train_fn = os.path.join(config.tfrecords,'train.tfrecords')
         train_meta = np.load(tfrecord2metafilename(train_fn))
@@ -86,8 +94,10 @@ def vgg16_train_feature_extract(device, config):
                                                               num_of_threads=1, shuffle=False)
    
         # building vgg model 
-        vgg = Vgg16(config.caffe_weights,trainable=False)
-        vgg.build(train_image, output_shape=config.output_shape,train_mode=None) 
+        with tf.variable_scope('cnn'):
+            vgg = Vgg16(config.caffe_weights)
+            validation_mode = tf.Variable(False, name='training')
+            vgg.build(train_image, output_shape=config.output_shape,train_mode=validation_mode) 
 
 
         layers_and_vals = [vgg.conv1_1, vgg.conv1_2,\
@@ -96,12 +106,17 @@ def vgg16_train_feature_extract(device, config):
                             vgg.conv4_1, vgg.conv4_2, vgg.conv4_3,\
                             vgg.conv5_1,  vgg.conv5_2,  vgg.conv5_3,\
                             vgg.fc6, vgg.fc7, vgg.prob, file_path, train_label]
-    
 
+        print "Variables stored in checpoint:"
+        print_tensors_in_checkpoint_file(file_name=model_path, tensor_name='',all_tensors='')
+        restorer = tf.train.Saver(tf.global_variables())
         # Initialize the graph
         with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
             # Need to initialize both of these if supplying num_epochs to inputs
             sess.run(tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()))
+
+            if model_path is not None:
+                restorer.restore(sess, model_path)
 
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)
@@ -170,7 +185,6 @@ def vgg16_train_feature_extract(device, config):
                         feature_array = [[] for _ in range(15)]
                         labels = []
                         batch_index += 1
-                    
 
 
             except tf.errors.OutOfRangeError:
@@ -192,7 +206,7 @@ def vgg16_train_feature_extract(device, config):
 
     return sampled_indicies
 
-def vgg16_test_feature_extract(device, sampled_indicies, config):
+def vgg16_test_feature_extract(device, sampled_indicies, config,model_path=None):
     """
     extracting val features for each convolutional and fully connected layer and storing them as numpy arrays in batches 
     Input: device - a gpu device
@@ -220,9 +234,10 @@ def vgg16_test_feature_extract(device, sampled_indicies, config):
                                                               size_of_batch=config.batch_size,labels=True, augmentations_dic=None, 
                                                               num_of_threads=1, shuffle=False)
 
-        with tf.device('/gpu:0'):
-            vgg = Vgg16(config.caffe_weights,trainable=False)
-            vgg.build(test_image, output_shape=config.output_shape,train_mode=None)
+        with tf.variable_scope('cnn'):
+            vgg = Vgg16(config.caffe_weights)
+            validation_mode = tf.Variable(False, name='training')
+            vgg.build(test_image, output_shape=config.output_shape,train_mode=validation_mode)
 
         layers_and_vals = [vgg.conv1_1, vgg.conv1_2,\
                             vgg.conv2_1, vgg.conv2_2,\
@@ -231,10 +246,14 @@ def vgg16_test_feature_extract(device, sampled_indicies, config):
                             vgg.conv5_1,  vgg.conv5_2,  vgg.conv5_3,\
                             vgg.fc6, vgg.fc7, vgg.prob, file_path, test_label]
         
+        saver = tf.train.Saver(tf.global_variables())
         # Initialize the graph
         with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
             # Need to initialize both of these if supplying num_epochs to inputs
             sess.run(tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()))
+
+            if model_path is not None:
+                saver.restore(sess, model_path)
 
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)
@@ -291,18 +310,21 @@ def vgg16_test_feature_extract(device, sampled_indicies, config):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("device")
+    parser.add_argument("device") # select a device
+    parser.add_argument("train_dir") # training directory 
+    parser.add_argument("test_dir") # test directory 
+    parser.add_argument("checkpoint") # checkpoint to load model from
     args = parser.parse_args()
     config = ConfigVgg()
 
+    config.SVM_train_data = args.train_dir
+    config.SVM_test_data = args.test_dir
+
+    make_dir(config.SVM_train_data) # create train directory if they do not exist
+    make_dir(config.SVM_test_data) # create test directory if they do not exist
+
     experiment_labels = {1:'animal', 0:'non-animal'}
-    imagenet_labels = {}
 
-    with open('imagenet_labels.txt', 'r') as f:
-        for row in f:
-            val = row.strip('\n').split(':')
-            imagenet_labels[int(val[0])] = val[1] 
-
-    sampled_indicies = vgg16_train_feature_extract(args.device,config)
+    sampled_indicies = vgg16_train_feature_extract(args.device,config, args.checkpoint)
     np.save(os.path.join(config.sampled_indicies,'sampled_indicies.npy'),sampled_indicies)
-    vgg16_test_feature_extract(args.device,np.load(os.path.join(config.sampled_indicies,'sampled_indicies.npy')),config)
+    vgg16_test_feature_extract(args.device,sampled_indicies,config,args.checkpoint)

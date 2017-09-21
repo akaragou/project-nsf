@@ -23,8 +23,6 @@ def append_scores(filename,scores_by_participant,scores_by_img,scores):
            scores - total score across trials
     Output: None
     """
-    total_trials = 0
-    time_outs = 0
     r = sqlite3.connect(filename).cursor().execute(
                 "SELECT datastring FROM placecat WHERE status in (3,4) AND NOT datastring==''").fetchall()
     print "%d participants found in file %s." % (len(r), filename)
@@ -40,7 +38,6 @@ def append_scores(filename,scores_by_participant,scores_by_img,scores):
 
         for t in trials:
 
-            total_trials += 1
 
             stim = json.loads(t["stimulus"])
 
@@ -48,27 +45,34 @@ def append_scores(filename,scores_by_participant,scores_by_img,scores):
             if 'examples' in stim["stimulus"]: # Example video not used in evaluation
                 continue
 
+            # recover max_rt and im num in block
+            max_rt = stim["duration"] - stim["onset"] - 50 # maybe exclude trails that surpased max response time
+
             img = '/'.join(stim["stimulus"].split('/')[3:-1])
            
             if t['rt'] > 0:
                 
                 participant = data['workerId']
-                score = 0 
-                if t['response'] == t['true_response']:
-                    score = 1  
-                else:
-                    score = 0
-                scores.append(score)
+                if t['rt'] <= 500:
+                   
+                    score = 0 
+                    if t['response'] == t['true_response']:
+                        score = 1  
+                    else:
+                        score = 0
+                    scores.append(score)
 
-                if img not in scores_by_img:
-                    scores_by_img[str(img)] = [score]
-                else:
-                    scores_by_img[str(img)].append(score)
+                    if img not in scores_by_img:
+                        scores_by_img[str(img)] = [score]
+                    else:
+                        scores_by_img[str(img)].append(score)
 
-                if participant not in scores_by_participant:
-                    scores_by_participant[str(participant)] = [score]
-                else: 
-                    scores_by_participant[str(participant)].append(score)
+                    if participant not in scores_by_participant:
+                        scores_by_participant[str(participant)] = [score]
+                    else: 
+                        scores_by_participant[str(participant)].append(score)  
+                
+
 
 def spearmans_rho_per_layer(scores_by_img, layer_file):
     """
@@ -212,6 +216,7 @@ def spearmans_rho_per_layer_nips(scores_by_img, layer_name):
 
 if __name__ == '__main__':
 
+    # set0 = ('/media/data_cifs/nsf_levels/Results/set0.db') control set
     set30 = ('/media/data_cifs/nsf_levels/Results/set30.db')
     set31 = ('/media/data_cifs/nsf_levels/Results/set31.db')
     set32 = ('/media/data_cifs/nsf_levels/Results/set32.db')
@@ -219,11 +224,11 @@ if __name__ == '__main__':
     set34 = ('/media/data_cifs/nsf_levels/Results/set34.db')
 
     scores = []
-    time_outs_and_trials = []
 
     scores_by_img = {}
     scores_by_participant = {}
 
+    # append_scores(set0, scores_by_participant, scores_by_img, scores)
     append_scores(set30, scores_by_participant, scores_by_img, scores)
     append_scores(set31, scores_by_participant, scores_by_img, scores)
     append_scores(set32, scores_by_participant, scores_by_img, scores)
@@ -238,6 +243,17 @@ if __name__ == '__main__':
     
     spearmans_rho_per_layer(scores_by_img, layer_file)
     # spearmans_rho_per_layer_nips(scores_by_img, args.layer)
+
+    # calculating human level accuracy 
+    accuracies = []
+    for v in scores_by_participant.values():
+        accuracy = sum(v)/len(v)
+        accuracies.append(accuracy)
+
+    print "Human level accuracy mean:", sum(accuracies)/len(accuracies)
+    print "Human level accuracy std", np.array(accuracies).std()
+
+
     
 
 
