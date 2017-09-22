@@ -246,14 +246,16 @@ def vgg16_test_feature_extract(device, sampled_indicies, config,model_path=None)
                             vgg.conv5_1,  vgg.conv5_2,  vgg.conv5_3,\
                             vgg.fc6, vgg.fc7, vgg.prob, file_path, test_label]
         
-        saver = tf.train.Saver(tf.global_variables())
+        print "Variables stored in checpoint:"
+        print_tensors_in_checkpoint_file(file_name=model_path, tensor_name='',all_tensors='')
+        restorer = tf.train.Saver(tf.global_variables())
         # Initialize the graph
         with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
             # Need to initialize both of these if supplying num_epochs to inputs
             sess.run(tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()))
 
             if model_path is not None:
-                saver.restore(sess, model_path)
+                restorer.restore(sess, model_path)
 
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)

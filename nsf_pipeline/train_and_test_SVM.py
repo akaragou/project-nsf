@@ -4,6 +4,13 @@ import numpy as np
 import os
 import argparse
 
+def make_dir(dir):
+    """
+    creates a directory if it does not exist
+    Input: a directory
+    Output: None
+    """
+    if not os.path.isdir(dir): os.makedirs(dir)
 
 def load_train_data(train_dir, batch, layer):
     """
@@ -155,6 +162,8 @@ if __name__ == '__main__':
     parser.add_argument('test_dir')
     parser.add_argument('results_dir')
     args = parser.parse_args()
+
+    make_dir(args.results_dir)
 
     results_numpy = args.results_dir + args.layer + '_results.npy'
     accuracy = train_and_test_SVM(results_numpy, args.train_dir, args.test_dir, args.layer)

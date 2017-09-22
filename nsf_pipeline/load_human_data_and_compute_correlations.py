@@ -74,7 +74,7 @@ def append_scores(filename,scores_by_participant,scores_by_img,scores):
                 
 
 
-def spearmans_rho_per_layer(scores_by_img, layer_file):
+def spearmans_rho_per_layer(scores_by_img, layer_file, plot=False):
     """
     Computes The Spearman's rho correlation between Distance from the Hyperplane and Human Accuracy
     plots the resulting correlation and stores it in a text file
@@ -118,29 +118,30 @@ def spearmans_rho_per_layer(scores_by_img, layer_file):
     colors = ['blue' if int(label) == 1 else 'green' for label in true_labels]
 
     # plotting
-    plt.scatter(total_avg_human_scores, model_decisions, c=colors,alpha=0.4)
-    plt.scatter([],[],color='blue',label='Animal',alpha=0.4)
-    plt.scatter([],[],color='green',label='Non-Animal',alpha=0.4)
-    plt.xlim(-10,100)
-    plt.ylim(-2, 4)
-    plt.axvline(x=0, color ='black')
-    plt.axhline(y=0, color ='black')
-    plt.axvline(x=50, color='red', linestyle='--',label='Chance')
-    title = 'Fitting Human to Vgg16 ' + str(layer_file.split('/')[-1].split('.')[0][:-8]) + ' Accuracy'
-    plt.title(title)
-    correlation_and_pvalue = 'Correlation: {0:.3g} (Spearman\'s rho), p-value: {1:.3g}'.format(corrl, p_val)
-    plt.xlabel('Human Accuracy (%)' +'\n' +'\n' + correlation_and_pvalue)
-    plt.ylabel('Distance from Hyperplane')
-    legend = plt.legend(loc=2)
-    frame = legend.get_frame()
-    frame.set_color('white')
-    # plt.show()
+    if plot:
+        plt.scatter(total_avg_human_scores, model_decisions, c=colors,alpha=0.4)
+        plt.scatter([],[],color='blue',label='Animal',alpha=0.4)
+        plt.scatter([],[],color='green',label='Non-Animal',alpha=0.4)
+        plt.xlim(-10,100)
+        plt.ylim(-2, 4)
+        plt.axvline(x=0, color ='black')
+        plt.axhline(y=0, color ='black')
+        plt.axvline(x=50, color='red', linestyle='--',label='Chance')
+        title = 'Fitting Human to Vgg16 ' + str(layer_file.split('/')[-1].split('.')[0][:-8]) + ' Accuracy'
+        plt.title(title)
+        correlation_and_pvalue = 'Correlation: {0:.3g} (Spearman\'s rho), p-value: {1:.3g}'.format(corrl, p_val)
+        plt.xlabel('Human Accuracy (%)' +'\n' +'\n' + correlation_and_pvalue)
+        plt.ylabel('Distance from Hyperplane')
+        legend = plt.legend(loc=2)
+        frame = legend.get_frame()
+        frame.set_color('white')
+        plt.show()
 
     results_txt = layer_file[:-11] + 'correlation_results.txt'
     with open(results_txt, 'wt') as f:
         f.write(correlation_msg +'\n')
 
-def spearmans_rho_per_layer_nips(scores_by_img, layer_name):
+def spearmans_rho_per_layer_nips(scores_by_img, layer_name, plot=False):
     """
     Computes The Spearman's rho correlation between Distance from the Hyperplane and Human Accuracy
     plots the resulting correlation for the original NIPS results with the non-finetuned Vgg16 model
@@ -194,23 +195,24 @@ def spearmans_rho_per_layer_nips(scores_by_img, layer_name):
     colors = ['blue' if int(label) == 1 else 'green' for label in true_labels]
 
     # plotting
-    plt.scatter(total_avg_human_scores, model_decisions, c=colors,alpha=0.4)
-    plt.scatter([],[],color='blue',label='Animal',alpha=0.4)
-    plt.scatter([],[],color='green',label='Non-Animal',alpha=0.4)
-    plt.xlim(-10,100)
-    plt.ylim(-2, 4)
-    plt.axvline(x=0, color ='black')
-    plt.axhline(y=0, color ='black')
-    plt.axvline(x=50, color='red', linestyle='--',label='Chance')
-    title = 'Fitting Human to Vgg16 ' + str(layer_name) + ' Accuracy'
-    plt.title(title)
-    correlation_and_pvalue = 'Correlation: {0:.3g} (Spearman\'s rho), p-value: {1:.3g}'.format(corrl, p_val)
-    plt.xlabel('Human Accuracy (%)' +'\n' +'\n' + correlation_and_pvalue)
-    plt.ylabel('Distance from Hyperplane')
-    legend = plt.legend(loc=2)
-    frame = legend.get_frame()
-    frame.set_color('white')
-    plt.show()
+    if plot:
+        plt.scatter(total_avg_human_scores, model_decisions, c=colors,alpha=0.4)
+        plt.scatter([],[],color='blue',label='Animal',alpha=0.4)
+        plt.scatter([],[],color='green',label='Non-Animal',alpha=0.4)
+        plt.xlim(-10,100)
+        plt.ylim(-2, 4)
+        plt.axvline(x=0, color ='black')
+        plt.axhline(y=0, color ='black')
+        plt.axvline(x=50, color='red', linestyle='--',label='Chance')
+        title = 'Fitting Human to Vgg16 ' + str(layer_name) + ' Accuracy'
+        plt.title(title)
+        correlation_and_pvalue = 'Correlation: {0:.3g} (Spearman\'s rho), p-value: {1:.3g}'.format(corrl, p_val)
+        plt.xlabel('Human Accuracy (%)' +'\n' +'\n' + correlation_and_pvalue)
+        plt.ylabel('Distance from Hyperplane')
+        legend = plt.legend(loc=2)
+        frame = legend.get_frame()
+        frame.set_color('white')
+        plt.show()
 
     
 
@@ -239,7 +241,7 @@ if __name__ == '__main__':
     parser.add_argument('layer')
     parser.add_argument('results_dir')
     args = parser.parse_args()
-    layer_file = args.results_dir + "/" + args.layer + "_results.npy"
+    layer_file = args.results_dir + args.layer + "_results.npy"
     
     spearmans_rho_per_layer(scores_by_img, layer_file)
     # spearmans_rho_per_layer_nips(scores_by_img, args.layer)
