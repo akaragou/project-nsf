@@ -167,7 +167,7 @@ def vgg16_train_feature_extract(device, config, model_path=None):
                     labels.append(label)
 
                     msg = "extracting features for image number: {0} || filename: {1} || True label is: {2}"
-                    print(msg.format((count + 1), file_path, experiment_labels[label]))  
+                    # print(msg.format((count + 1), file_path, experiment_labels[label]))  
                     count += 1
 
 
@@ -286,7 +286,7 @@ def vgg16_test_feature_extract(device, sampled_indicies, config,model_path=None)
                        
 
                     msg = "extracting features for image number: {0} || filename: {1} || True label is: {2}"
-                    print(msg.format((count + 1), file_path, experiment_labels[label]))
+                    # print(msg.format((count + 1), file_path, experiment_labels[label]))
                     labels.append(label)
                     filepaths.append(file_path)
                     count += 1

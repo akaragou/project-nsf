@@ -241,7 +241,7 @@ if __name__ == '__main__':
     parser.add_argument('layer')
     parser.add_argument('results_dir')
     args = parser.parse_args()
-    layer_file = args.results_dir + args.layer + "_results.npy"
+    layer_file = args.results_dir + '/' + args.layer + "_results.npy"
     
     spearmans_rho_per_layer(scores_by_img, layer_file)
     # spearmans_rho_per_layer_nips(scores_by_img, args.layer)

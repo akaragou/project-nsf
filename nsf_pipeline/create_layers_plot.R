@@ -1,6 +1,8 @@
 
+#!/usr/bin/env Rscript
 library(ggplot2)
-png(file="Vgg16 Model Accuracy and Correlation with Humans.png",width=1500, height=950, res=150)
+args = commandArgs(trailingOnly=TRUE)
+png(file=paste(c(args[1],'png'), collapse="."),width=1500, height=950, res=150)
 neg_trans <- function(x){
   val <- (x-50)
   val <- val/50
@@ -12,17 +14,25 @@ pos_trans <- function(x){
   val <- val+50
   return(val)
 }
+layer_numbers <-c(1:15)
 
-accuracy_result = read.csv('layer_accuracy_results.csv')
-correlation_result = read.csv('layer_correlation_results.csv')
-
+accuracy_result = read.csv(paste(c('caffe_results','layer_accuracy_results.csv'), collapse="/"))
+correlation_result = read.csv(paste(c('caffe_results', 'layer_correlation_results.csv'), collapse="/"))
 Accuracy <- accuracy_result$Accuracy * 100
 correlation <- correlation_result$Correlation 
-Results <- rep("Caffe Weights", 15)
-Caffe_results <- data.frame(layer_numbers, correlation,Accuracy, Results)
-combined_resuls <- rbind(Caffe_results)
+Weights <- rep("Caffe Weights", 15)
+Caffe_results <- data.frame(layer_numbers, correlation,Accuracy, Weights)
 
-ggplot(combined_resuls, aes(x=layer_numbers, color = Results)) +
+accuracy_result = read.csv(paste(c(args[1],'layer_accuracy_results.csv'), collapse="/"))
+correlation_result = read.csv(paste(c(args[1], 'layer_correlation_results.csv'), collapse="/"))
+Accuracy <- accuracy_result$Accuracy * 100
+correlation <- correlation_result$Correlation 
+Weights <- rep("Clicktionary Weights", 15)
+Click_results <-  data.frame(layer_numbers, correlation,Accuracy, Weights)
+
+combined_resuls <- rbind(Caffe_results, Click_results)
+
+ggplot(combined_resuls, aes(x=layer_numbers, color = Weights)) +
   coord_cartesian(ylim = c(50,100)) + 
   geom_point(aes(y=Accuracy),alpha =0.5) +
   geom_smooth(aes(y=Accuracy),method='lm',se=FALSE, alpha=0.5)+
@@ -31,9 +41,9 @@ ggplot(combined_resuls, aes(x=layer_numbers, color = Results)) +
          plot.background = element_blank()
           ,panel.grid.major = element_blank()
           ,panel.grid.minor = element_blank()) +
-  geom_hline(aes(yintercept=77.4),color='grey40',alpha =0.5) +
-  geom_hline(aes(yintercept=78.8),color='grey40',linetype='dashed',alpha =0.5) +
-  geom_hline(aes(yintercept=76),color='grey40',linetype='dashed',alpha =0.5) +
+  geom_hline(aes(yintercept=76.8),color='grey40',alpha =0.5) +
+  geom_hline(aes(yintercept=77.9),color='grey40',linetype='dashed',alpha =0.5) +
+  geom_hline(aes(yintercept=75.7),color='grey40',linetype='dashed',alpha =0.5) +
   geom_text(aes(x = 14, y = 80),color='grey40', label = "Human Accuracy",alpha =0.5) + 
   geom_point(aes(y=pos_trans(correlation)),alpha =0.5) +
  geom_smooth(aes(y=pos_trans(correlation)),method='loess', alpha=0.5,se=FALSE,span=1)+
@@ -47,7 +57,7 @@ ggplot(combined_resuls, aes(x=layer_numbers, color = Results)) +
                                                    'conv5_3', 'fc6', 'fc7')) +
   xlab('Layer (Increasing Complexity)') +
   ylab('Accuracy (%)') + 
-  ggtitle("Vgg16 Model Accuracy and Correlation with Humans") 
+  ggtitle(c(args[1],'results')) 
 
 dev.off()
 

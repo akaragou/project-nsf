@@ -165,10 +165,10 @@ if __name__ == '__main__':
 
     make_dir(args.results_dir)
 
-    results_numpy = args.results_dir + args.layer + '_results.npy'
+    results_numpy = args.results_dir + '/'+ args.layer + '_results.npy'
     accuracy = train_and_test_SVM(results_numpy, args.train_dir, args.test_dir, args.layer)
 
-    results_txt = args.results_dir + args.layer + '_accuracy_results.txt'
+    results_txt = args.results_dir + '/'+ args.layer + '_accuracy_results.txt'
     with open(results_txt, 'wt') as f:
         f.write(accuracy +'\n')
 
