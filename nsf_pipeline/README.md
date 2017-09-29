@@ -1,0 +1,14 @@
+- baseline\_vgg16.py - implementation of Vgg16
+- cleanup.py - creates a csv for either accuracy or correlation results
+- create\_layers\_plot.R - plots SVM layer accuracy and Spearman's rho corrletion with humans versus increasing layer complexity 
+- imagenet\_labels.txt - imagenet 1000 category labels
+- load\_human\_data\_an]d_compute\_correlations.py - loads human data from the database and computes Spearman's rho correlations with SVM layer distance from the hyperplane and human categorization accuracy 
+- prepare\_tfrecords.py - creates tfrecords for training and test datasets
+- run\_pipline.sh - bash script that extracts features, trains and tests SVM, computes correlations with human categorization accuracy, cleans ups results and plots results
+- test\_labels.txt - labels for test set
+- tfrecord.py - methods for creating and decoding tfrecords 
+- train\_and\_test\_SVM.py - methods for training and testing SVM on convoltional and fully connected layers and outputing results
+- train\_labels.txt - labels for train set
+- vgg16\_feature\_extract.py - methods for extracting convolutional and fully connected feature for train and test sets
+- vgg\_config.py - configures variables for Vgg16 model
+

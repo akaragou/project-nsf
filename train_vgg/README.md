@@ -1,0 +1,4 @@
+- ops - contains scripts for loading tfrecords, computing metrics and various loss functions
+- config.py - variables that can be cofigured for training
+- train\_model.py - loads training and validation tfrecords and trains model
+- vgg\_model.py - implementation of Vgg16

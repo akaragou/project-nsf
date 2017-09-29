@@ -1,0 +1,4 @@
+- data\_loader.py - methods for loading and processing tfrecords
+- loss\_utils.py - methods for various loss implementations
+- metrics.py - methods for metrics to be used while training or to analyze results
+- tf\_fun.py - contains training loop and other methods to assist in prepping and modeling data
