@@ -46,6 +46,6 @@ python load_human_data_and_compute_correlations.py conv5_3 $RESULTS_DIR &
 python load_human_data_and_compute_correlations.py fc6 $RESULTS_DIR &
 python load_human_data_and_compute_correlations.py fc7 $RESULTS_DIR &
 wait
-python cleanup.py accuracy $CHECKPOINT_NAME$RESULTS_DIR 
-python cleanup.py correlation $CHECKPOINT_NAME$RESULTS_DIR 
-Rscript create_layers_plot.R $CHECKPOINT_NAME$RESULTS_DIR
+python cleanup.py accuracy $RESULTS_DIR 
+python cleanup.py correlation $RESULTS_DIR 
+Rscript create_layers_plot.R $RESULTS_DIR
