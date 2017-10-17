@@ -14,9 +14,9 @@ import vgg_model as vgg16
 from tensorflow.contrib.framework.python.ops.variables import get_or_create_global_step
 from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
 
-def train_vgg16():
+def train_vgg16(device):
 
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'    
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(device)
     config = vggConfig()
     train_data = config.training_images
     train_meta = np.load(config.training_meta)
@@ -28,7 +28,7 @@ def train_vgg16():
     print 'Using validation tfrecords: %s | %s images' % (
         validation_data, len(val_meta['labels']))
     # Make output directories if they do not exist
-    dt_stamp = 'baseline_' +\
+    dt_stamp = 'grayscale_' +\
         str(config.initial_learning_rate)[2:] + '_' + str(
             len(train_meta['labels'])) + '_' + re.split(
             '\.', str(datetime.now()))[0].\
@@ -46,102 +46,91 @@ def train_vgg16():
     print '-'*60
 
     # Prepare data on CPU
-    with tf.device('/cpu:0'):
-        train_images, train_labels = inputs(
-            train_data, config.train_batch, config.image_size,
-            config.model_image_size[:2],
-            train=config.data_augmentations,
-            num_epochs=config.epochs,
-            return_heatmaps=False)
-        val_images, val_labels = inputs(
-            validation_data, config.validation_batch, config.image_size,
-            config.model_image_size[:2],
-            num_epochs=None,
-            return_heatmaps=False)
+    train_images, train_labels = inputs(
+        train_data, config.train_batch, config.image_size,
+        config.model_image_size[:2],
+        train=config.data_augmentations,
+        num_epochs=config.epochs,
+        return_heatmaps=False,
+        is_grayscale=True)
+    val_images, val_labels = inputs(
+        validation_data, config.validation_batch, config.image_size,
+        config.model_image_size[:2],
+        num_epochs=None,
+        return_heatmaps=False,
+        is_grayscale=True)
 
-        step = get_or_create_global_step()
-        step_op = tf.assign(step, step+1)
+    step = get_or_create_global_step()
+    step_op = tf.assign(step, step+1)
     # Prepare model on GPU
-    with tf.device('/gpu:0'):
-        with tf.variable_scope('cnn') as scope:
-            vgg = vgg16.model_struct()
-            train_mode = tf.get_variable(name='training', initializer=True)
-            vgg.build(
-                train_images,
-                is_training=True,
-                batchnorm=True)
+    with tf.variable_scope('cnn') as scope:
+        vgg = vgg16.model_struct()
+        train_mode = tf.get_variable(name='training', initializer=True)
+        vgg.build(
+            train_images,
+            is_training=True,
+            is_grayscale=True,
+            batchnorm=True)
 
-            # Prepare the loss function
-            loss = softmax_loss(logits=vgg.fc8, labels=train_labels)
+        # Prepare the loss function
+        loss = softmax_loss(logits=vgg.fc8, labels=train_labels)
 
-            # Add weight decay of fc6/7/8
-            if config.wd_penalty is not None:
-                loss = wd_loss(
-                    loss=loss,
-                    trainables=tf.trainable_variables(),
-                    config=config)
+        # Add weight decay of fc6/7/8
+        if config.wd_penalty is not None:
+            loss = wd_loss(
+                loss=loss,
+                trainables=tf.trainable_variables(),
+                config=config)
 
-            lr = tf.train.exponential_decay(
-                        learning_rate = config.initial_learning_rate,
-                        global_step = step_op,
-                        decay_steps = config.decay_steps,
-                        decay_rate = config.learning_rate_decay_factor,
-                        staircase = True)
+        lr = tf.train.exponential_decay(
+                    learning_rate = config.initial_learning_rate,
+                    global_step = step_op,
+                    decay_steps = config.decay_steps,
+                    decay_rate = config.learning_rate_decay_factor,
+                    staircase = True)
 
-            if config.optimizer == "adam":
-                update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-                with tf.control_dependencies(update_ops):
-                    train_op =  tf.train.AdamOptimizer(lr).minimize(loss)
-            elif config.optimizer == "sgd":
-                update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-                with tf.control_dependencies(update_ops):
-                    train_op =  tf.train.GradientDescentOptimizer(lr).minimize(loss)
-            elif config.optimizer == "nestrov":
-                update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-                with tf.control_dependencies(update_ops):
-                    train_op =  tf.train.MomentumOptimizer(lr, config.momentum, use_nesterov=True).minimize(loss)
-            else:
-                raise Exception("Not known optimizer! options are adam, sgd or nestrov")
+        if config.optimizer == "adam":
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                train_op =  tf.train.AdamOptimizer(lr).minimize(loss)
+        elif config.optimizer == "sgd":
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                train_op =  tf.train.GradientDescentOptimizer(lr).minimize(loss)
+        elif config.optimizer == "nestrov":
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                train_op =  tf.train.MomentumOptimizer(lr, config.momentum, use_nesterov=True).minimize(loss)
+        else:
+            raise Exception("Not known optimizer! options are adam, sgd or nestrov")
 
-            train_accuracy = class_accuracy(vgg.prob, train_labels)  # training accuracy
+        train_accuracy = class_accuracy(vgg.prob, train_labels)  # training accuracy
 
-            # Add summaries for debugging
-            tf.summary.image('train images', train_images)
-            tf.summary.image('validation images', val_images)
-            tf.summary.scalar("loss", loss)
-            tf.summary.scalar("training accuracy", train_accuracy)
+        # Add summaries for debugging
+        tf.summary.image('train images', train_images)
+        tf.summary.image('validation images', val_images)
+        tf.summary.scalar("loss", loss)
+        tf.summary.scalar("training accuracy", train_accuracy)
 
-            # Setup validation op
-            scope.reuse_variables()
+        # Setup validation op
+        scope.reuse_variables()
 
-            # Validation graph is the same as training except no batchnorm
-            val_vgg = vgg16.model_struct()
-            val_vgg.build(val_images,
-                        is_training=False,
-                        batchnorm=True)
+        # Validation graph is the same as training except no batchnorm
+        val_vgg = vgg16.model_struct()
+        val_vgg.build(val_images,
+                    is_training=False,
+                    is_grayscale=True,
+                    batchnorm=True)
 
-            # Calculate validation accuracy
-            val_accuracy = class_accuracy(val_vgg.prob, val_labels)
-            tf.summary.scalar("validation accuracy", val_accuracy)
+        # Calculate validation accuracy
+        val_accuracy = class_accuracy(val_vgg.prob, val_labels)
+        tf.summary.scalar("validation accuracy", val_accuracy)
 
     # Set up summaries and saver
-    saver = tf.train.Saver(
-        tf.global_variables(), max_to_keep=config.keep_checkpoints)
-    print
-    print "Variables stored in checpoint:"
-    print_tensors_in_checkpoint_file(file_name='/media/storage/andreas/vgg16_grayscale_train/checkpoints/baseline_0001_1283163_2017_08_17_21_00_31/model_425000.ckpt-425000', tensor_name='',all_tensors='')
-    conv_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='cnn/vgg_conv/')
-    fc6_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='cnn/fc6/')
-    fc6_batchnorm = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='cnn/fc6_batchnorm')
-    fc7_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='cnn/fc7/')
-    fc7_batchnorm = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='cnn/fc7_batchnorm')
-    fc8_vriables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='cnn/fc8/')
-    model_variables = conv_variables + fc6_variables + fc6_batchnorm + fc7_variables + fc7_batchnorm + fc8_vriables
-    print "Model variables to restore:"
-    for var in model_variables:
-        print var
-    print
-    restorer = tf.train.Saver(model_variables)
+    saver = tf.train.Saver(tf.global_variables(), max_to_keep=config.keep_checkpoints)
+
+
+    # restorer = tf.train.Saver(model_variables) used when restoring variables
     summary_op = tf.summary.merge_all()
 
     # Initialize the graph
@@ -149,7 +138,7 @@ def train_vgg16():
     # Need to initialize both of these if supplying num_epochs to inputs
     sess.run(tf.group(tf.global_variables_initializer(),
              tf.local_variables_initializer()))
-    restorer.restore(sess, '/media/storage/andreas/vgg16_grayscale_train/checkpoints/baseline_0001_1283163_2017_08_17_21_00_31/model_425000.ckpt-425000')
+    # restorer.restore(sess, '/media/storage/andreas/vgg16_grayscale_train/checkpoints/baseline_0001_1283163_2017_08_17_21_00_31/model_425000.ckpt-425000')
     summary_dir = os.path.join(
         config.train_summaries, dt_stamp)
     summary_writer = tf.summary.FileWriter(summary_dir, sess.graph)
@@ -180,4 +169,7 @@ def train_vgg16():
 
 
 if __name__ == '__main__':
-    train_vgg16()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("device")
+    args = parser.parse_args()
+    train_vgg16(args.device)
