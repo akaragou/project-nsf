@@ -1,6 +1,5 @@
 import os
 
-
 class vggConfig():
     def __init__(self, **kwargs):
         # Image directories
@@ -15,7 +14,7 @@ class vggConfig():
              'imagenet_val_meta.npz')
         self.im_ext = '.JPEG'
 
-        self.project_base_path = '/media/storage/andreas/vgg16_grayscale_train/'
+        self.project_base_path = '/media/data_cifs/andreas/vgg_train/'
         self.results = os.path.join(self.project_base_path, 'results')
         self.train_checkpoint = os.path.join(
             self.project_base_path, 'checkpoints')
@@ -25,7 +24,7 @@ class vggConfig():
         self.image_size = [256, 256, 3]
         self.train_batch = 32
         self.validation_batch = 32
-        self.optimizer = "nestrov"
+        self.optimizer = "adam"
         self.initial_learning_rate = 1e-05
         self.momentum = 0.95 # if optimizer is nestrov
         self.decay_steps = 100000
