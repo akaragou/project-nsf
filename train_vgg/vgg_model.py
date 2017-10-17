@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 import gc
 
-VGG_MEAN = [103.939, 116.779, 123.68]
+VGG_MEAN = [103.939, 116.779, 123.68] # color means 
 
 class model_struct:
     """
@@ -46,10 +46,10 @@ class model_struct:
         if is_grayscale:
             grayscale_img = tf.identity(img, name="input_grayscale_img")
             grayscale_img_scaled = grayscale_img * 255.0   
-            normalized_img = grayscale_img_scaled - 117
+            normalized_img = grayscale_img_scaled - 117.257 #grayscale mean 
         else:
             color_img = tf.identity(img, name="input_color_img")
-            image_rgb_scaled = image_rgb * 255.0
+            image_rgb_scaled = color_img * 255.0
             red, green, blue = tf.split(num_or_size_splits=3, axis=3, value=image_rgb_scaled)
             assert red.get_shape().as_list()[1:] == [224, 224, 1]
             assert green.get_shape().as_list()[1:] == [224, 224, 1]

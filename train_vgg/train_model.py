@@ -130,7 +130,7 @@ def train_vgg16(device):
     saver = tf.train.Saver(tf.global_variables(), max_to_keep=config.keep_checkpoints)
 
 
-    # restorer = tf.train.Saver(model_variables) used when restoring variables
+    restorer = tf.train.Saver()
     summary_op = tf.summary.merge_all()
 
     # Initialize the graph
@@ -138,7 +138,7 @@ def train_vgg16(device):
     # Need to initialize both of these if supplying num_epochs to inputs
     sess.run(tf.group(tf.global_variables_initializer(),
              tf.local_variables_initializer()))
-    # restorer.restore(sess, '/media/storage/andreas/vgg16_grayscale_train/checkpoints/baseline_0001_1283163_2017_08_17_21_00_31/model_425000.ckpt-425000')
+    restorer.restore(sess, '/media/data_cifs/andreas/vgg_train/checkpoints/grayscale_-05_1283163_2017_09_09_19_20_09/model_228000.ckpt-228000')
     summary_dir = os.path.join(
         config.train_summaries, dt_stamp)
     summary_writer = tf.summary.FileWriter(summary_dir, sess.graph)

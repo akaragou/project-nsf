@@ -244,6 +244,7 @@ def read_and_decode(
                     im_size,
                     model_input_shape,
                     data_augmentations,
+                    is_grayscale,
                     return_heatmaps=False,
                     weight_loss_with_counts=False):
     reader = tf.TFRecordReader()
@@ -265,7 +266,8 @@ def read_and_decode(
     image = image_augmentations(
         image, None, im_size, data_augmentations,
         model_input_shape, return_heatmaps)
-    image = tf.image.rgb_to_grayscale(image)
+    if is_grayscale:
+        image = tf.image.rgb_to_grayscale(image)
 
     # Convert label from a scalar uint8 tensor to an int32 scalar.
     label = tf.cast(features['label'], tf.int32)
@@ -283,7 +285,8 @@ def inputs(
         num_threads=2,
         return_heatmaps=True,
         shuffle_batch=True,
-        weight_loss_with_counts=False):
+        weight_loss_with_counts=False,
+        is_grayscale=False):
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer(
             [tfrecord_file], num_epochs=num_epochs)
@@ -292,7 +295,7 @@ def inputs(
         # queue.
         batch_data = read_and_decode(
             filename_queue, im_size, model_input_shape,
-            train)
+            train,is_grayscale)
         # Shuffle the examples and collect them into batch_size batches.
         # (Internally uses a RandomShuffleQueue.)
         # We run this in two threads to avoid being a bottleneck.
