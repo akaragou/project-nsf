@@ -4,7 +4,7 @@ Understanding how human vision correlates with Convolutional Neural Networks (CN
 
 ---
 
-- nsf\_pipeline - data pipeline that extracts features from Vgg16 for spefic layers, trains an SVM on each layer and computes human correlations between SVM hyperplane distance and human categorization accuracy
+- nsf\_pipeline - data pipeline that extracts features from Vgg16 for spefic layers, trains an SVM on each layer and computes correlations between SVM hyperplane distance and human categorization accuracy
 - train\_vgg - contains scripts for training Vgg16 from scratch for grayscale and color images
 
 ---
